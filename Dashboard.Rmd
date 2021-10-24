@@ -4,23 +4,26 @@ output:
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
-  
+    runtime: shiny
+   
 ---
 
 ```{r setup, include=FALSE}
 
 ## r Packages
 
+library(covid19srilanka) # to load the COVID-19 cases
 library(flexdashboard) # to dashboard interface
 library(readr) # to read the files
 library(tidyverse) # to data manipulation
 library(plotly) # to interactive visualization
 library(ggplot2) # to visualization
-library(coronavirus) # to get coronavirus data
-#library(sf) # to mapping
+library(ceylon) # to get data to plot the Sri Lanka country map
+library(sf) # to mapping
 library(leaflet) # to mapping
 library(leafpop) # to mapping
-
+library(cartogram) # to mapping
+library(viridis) # to get colorblind-friendly color maps
 ```
 
 
@@ -34,13 +37,16 @@ death_clr <- "#d95f02"
 wave1_clr <- "#8c96c6"
 wave2_clr <- "#8856a7"
 wave3_clr <- "#810f7c"
+dose1_clr <- "#d01c8b"
+dose2_clr <-  "#4dac26"
 ```
 
 
 Overview  
 =====================================================
 
-#### **Last Updated at `r format(Sys.time()-86400, "%A %B %d, %Y")`**
+#### **Last Updated at `r format(Sys.time()-86400, "%A %B %d, %Y")` (Latest local data available for: August 31, 2021)**
+
 
 
 Column 
@@ -49,9 +55,9 @@ Column
 ```{r}
 
 # Get Covid-19 data into R
-Covid_cases <- read.csv("C:/Users/Randi/Desktop/Project/Project/Covid.cases.csv")
+Covid_cases <- covid.cases
 
-Covid_cases  <- Covid_cases [order(as.Date(Covid_cases$Date, format="%Y-%m-%d")), ] 
+Covid_cases  <- Covid_cases[order(as.Date(Covid_cases$Date, format="%Y-%m-%d")), ] 
 
 i <- 1:length(Covid_cases$Type)
 
@@ -59,11 +65,28 @@ i <- 1:length(Covid_cases$Type)
 Covid_cases$daily <- Covid_cases$Count[i+4] - Covid_cases$Count[i]
 Covid_cases$daily <- abs(Covid_cases$daily)
 
+# Correction of some daily counts
+Covid_cases$daily[c(1642, 1678, 1714, 1734, 1790, 1882, 1902, 1989, 2013, 2029, 2038, 2049, 2069, 2070)] <- c(1352, 1296, 2877, 1670, 1898, 955, 972, 2953, 3435, 3806, 2522, 4446, 4612, 2182)
+
 x <- Covid_cases %>%
   dplyr::filter(Date == max(Covid_cases$Date))
 
+
+# Assign wave by considering date
+Covid_cases$Wave = lapply(Covid_cases$Date, FUN = function(x){
+  x = as.Date(x)
+  if(as.Date("2020-03-29") <= x & x <= as.Date("2020-10-03")){
+    return("First Wave")
+  } else if (as.Date("2020-10-04") <= x & x <= as.Date("2021-04-14")){
+    return("Second Wave")
+  } else {
+    return("Third Wave")
+  } 
+})
+
+
 # Get Vaccine data set into R
-Vaccine.data <- read.csv("C:/Users/Randi/Desktop/Project/Project/Vaccine.data.csv")
+Vaccine.data <- vaccination
 
 colnames(Vaccine.data)[which(names(Vaccine.data) %in% c("first.dose", "Second.dose"))] <- c("First Dose Only", "Fully Vaccinated")
 
@@ -82,24 +105,28 @@ y <- Vaccine_new %>%
 
 ```{r}
 valueBox(value = format(x$Count[1], big.mark = ","), icon = "fas fa-ambulance", color = confirmed_clr)
+
 ```
 
 ### Total Recovered
 
 ```{r}
 valueBox(value = format(x$Count[2], big.mark = ","), icon = "fas fa-home", color = recovered_clr)
+
 ```
 
 ### Total Death
 
 ```{r}
 valueBox( value = format(x$Count[3], big.mark = ","), icon = "fas fa-heartbeat", color = death_clr)
+
 ```
 
 ### Total Active 
 
 ```{r}
 valueBox( value = format(x$Count[4], big.mark = ","), icon = "fas fa-bed", color = active_clr)
+
 ```
 
 
@@ -107,6 +134,7 @@ valueBox( value = format(x$Count[4], big.mark = ","), icon = "fas fa-bed", color
 
 ```{r}
 valueBox( value = format(sum(y$count), big.mark = ","), icon = "fas fa-injection", color = "#a6761d")
+
 ```
 
 
@@ -188,24 +216,13 @@ column{.tabset}
 
 ```{r}
 
-Confirmed <- Covid_cases %>%
+Confirmed_new <- Covid_cases %>%
   filter(Type == "Confirmed")
 
-# Assign wave by considering date
-Confirmed$Wave = lapply(Confirmed$Date, FUN = function(x){
-  x = as.Date(x)
-  if(as.Date("2020-03-29") <= x & x <= as.Date("2020-10-03")){
-    return("First Wave")
-  } else if (as.Date("2020-10-04") <= x & x <= as.Date("2021-04-14")){
-    return("Second Wave")
-  } else {
-    return("Third Wave")
-  } 
-})
+Confirmed_new$Wave <- as.character(Confirmed_new$Wave)
+Confirmed_new$Date <- as.Date(Confirmed_new$Date) - 1
 
-Confirmed$Wave <- as.character(Confirmed$Wave)
-
-plot_ly(Confirmed, x = ~Date, 
+plot_ly(Confirmed_new, x = ~Date, 
         y = ~Count, 
         type = "scatter", 
         mode = "lines+markers", 
@@ -221,7 +238,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2020-06-23"),
-    y = 150000,
+    y = 250000,
     text = 'Lifted the COVID-19 Curfew',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -235,7 +252,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2020-07-31"),
-    y = 150000,
+    y = 250000,
     text = 'Held the Parlimentary Elections',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -249,7 +266,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2020-09-29"),
-    y = 150000,
+    y = 250000,
     text = 'Announced as a Second wave & Closed All Schools',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -263,7 +280,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2020-10-24"),
-    y = 150000,
+    y = 250000,
     text = 'Imposed Curfew in the Entire Western Province',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -277,7 +294,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2021-01-25"),
-    y = 150000,
+    y = 250000,
     text = 'Began the Vaccination of Health and Frontline Workers',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -291,7 +308,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2021-04-10"),
-    y = 150000,
+    y = 250000,
     text = 'Annonced a Risk Alert Level 3',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -305,7 +322,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2021-05-01"),
-    y = 150000,
+    y = 250000,
     text = 'Closed Borders to India',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -319,7 +336,7 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2021-05-07"),
-    y = 175000,
+    y = 275000,
     text = 'Imposed inter Provincial Travel Restriction ',
     textangle = '270',
     font = list(size = 12, color = "black"),
@@ -333,12 +350,27 @@ plot_ly(Confirmed, x = ~Date,
                showlegend = FALSE) %>%
   add_annotations(
     x = as.Date("2021-06-12"),
-    y = 150000,
+    y = 250000,
     text = 'Identified the First Cases Infected by Delta Variant',
     textangle = '270',
     font = list(size = 12, color = "black"),
     showarrow = FALSE
-  ) 
+  ) %>%
+  add_segments(y = 0, 
+               yend = max(Confirmed$Count), 
+               x = as.Date("2021-08-20"), 
+               xend = as.Date("2021-08-20"), 
+               line = list(dash = "dot", color = "black", width = 1),
+               showlegend = FALSE) %>%
+  add_annotations(
+    x = as.Date("2021-08-15"),
+    y = 250000,
+    text = 'Imposed the Quarantine Curfew for all Island',
+    textangle = '270',
+    font = list(size = 12, color = "black"),
+    showarrow = FALSE
+  )
+
 ```
 
 
@@ -400,6 +432,64 @@ subplot(g4, g5, g6, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
 
 ```
 
+### **COVID-19 Deaths Distribution by Wave**
+
+```{r}
+y1 <- Deaths %>%
+  filter(Wave == "First Wave")
+
+g7 <- plot_ly(y1) %>%
+  add_bars(
+    x = ~Date, y = ~daily, type = "bar",
+    marker = list(color = death_clr),
+    name = "First wave"
+  ) %>%
+  layout(
+    yaxis = list(title  = "Daily Deaths", tick0 = 0, dtick=1),
+    xaxis = list(title = "Date"),
+    showlegend = FALSE
+  )
+
+
+y2 <- Deaths %>%
+  filter(Wave == "Second Wave")
+
+g8 <- plot_ly(y2) %>%
+  add_bars(
+    x = ~Date, y = ~daily, type = "bar",
+    marker = list(color = death_clr),
+    name = "Second wave"
+  ) %>%
+  layout(
+    yaxis = list(title  = "Daily Deaths"),
+    xaxis = list(title = "Date"),
+    showlegend = FALSE
+  )
+
+y3 <- Deaths %>%
+  filter(Wave == "Third Wave")
+
+g9 <- plot_ly(y3) %>%
+  add_bars(
+    x = ~Date, y = ~daily, type = "bar",
+    marker = list(color = death_clr),
+    name = "Third wave"
+  ) %>%
+  layout(
+    yaxis = list(title  = "Daily Deaths"),
+    xaxis = list(title = "Date"),
+    showlegend = FALSE
+  )
+
+subplot(g7, g8, g9, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
+  layout(annotations = list(
+    list(x = 0.1, y = 1.05, text = "First Wave", showarrow = F, xref = 'paper', yref = 'paper'),
+    list(x = 0.5, y = 1.05, text = "Second Wave", showarrow = F, xref = 'paper', yref = 'paper'),
+    list(x = 0.85, y = 1.05, text = "Third Wave", showarrow = F, xref = 'paper', yref = 'paper')
+  ))
+
+```
+
 
 COVID-19 Patients Distribution
 ================================================================================
@@ -411,20 +501,21 @@ column{.tabset}
 ```{r}
 
 # Get District wise data 
-June_Covid <- read.csv("C:/Users/Randi/Desktop/Project/Project/Covid.June.csv")
-June_Covid <- June_Covid[order(as.Date(June_Covid$Date, format="%Y-%m-%d")), ]
+District_Covid <- district.wise.cases
+District_Covid <-District_Covid[order(as.Date(District_Covid$Date, format="%Y-%m-%d")), ]
 
 # Get total count for each district
-June_30 <- tail(June_Covid, 26)
+Last_day <- District_Covid %>%
+  filter(Date == max(District_Covid$Date))
 
 ```
 
-### **Total COVID-19 Patients Distribution in Sri Lanka (upto 30th June 2021)**
+### **Total COVID-19 Patients Distribution in Sri Lanka (upto 31st Aug 2021)**
 
 
 ```{r}
 
-Covid <- June_30 %>%
+Covid <- Last_day %>%
   mutate(District = case_when(
     District == "Kurunagala" ~ "Kurunegala",
     TRUE ~ District
@@ -450,12 +541,10 @@ plot_ly(
 
 ```{r}
 # Get geometries of sri Lanka related to districts.
-SL_shp <- read_sf("C:/Users/Randi/Desktop/Project/Project/lka_admbnda_adm2_slsd_20200305.shp") %>%
-  select(ADM2_EN, geometry)
-SL <- SL_shp %>% st_transform(5235)
 
-SL <- SL%>%
-  rename(District = ADM2_EN)
+SL <- district
+SL$DISTRICT <- str_to_title(SL$DISTRICT)
+colnames(SL) <- c("geometry", "District", "status", "population")
 
 Covid_SL <- left_join(SL, Covid, by = c("District"))
 
@@ -469,43 +558,57 @@ Covid_SL <- Covid_SL %>%
   filter(!(District == "Kalmunai")) %>%
   mutate(Count = ifelse(District == "Ampara", newcount, Count))
 
-p1 <- ggplot(Covid_SL)+
-  geom_sf(aes(fill = Count, text = paste('District:', District)))+
-  scale_fill_distiller(type = "seq",
-                       palette = "YlOrBr",
-                       breaks = c(5000, 10000, 20000, 30000, 40000, 50000, 60000),
-                       limits = c(min(Covid_SL$Count), max(Covid_SL$Count)),
-                       direction = -1)+
-  ggtitle("Map for COVID-19 Cases")+
-  theme(plot.title = element_text(hjust = 0.5))
+p1 <- ggplotly(ggplot(Covid_SL) + geom_sf(aes(fill = Count, text = paste('District:', District)), show.legend = TRUE) + 
+  scale_fill_viridis()+
+  theme(axis.text.x = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        rect = element_blank()))
 
-ggplotly(p1)
+Covid_SL <- Covid_SL[-c(1), ]
+dorl <- cartogram_dorling(Covid_SL, weight = "population")%>%
+  st_as_sf()
+
+p2 <- ggplotly(ggplot(dorl)+
+  geom_sf(data = Covid_SL)+
+  geom_sf(aes(fill = Count, text = paste('District:', District)))+
+   scale_fill_viridis()+
+  theme(axis.text.x = element_blank(), 
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        rect = element_blank()))
+
+subplot(p1, p2, nrows = 1, shareX = TRUE) %>%
+  layout(annotations = list(
+    list(x = 0.08, y = 1, text ="Map for Distribution of Total COVID-19 Confirmed Cases", showarrow = F, xref = 'paper', yref = 'paper'),
+    list(x = 0.90, y = 1, text = "Map for Total COVID-19 Confirmed Cases Weighted by Population", showarrow = F, xref = 'paper', yref = 'paper')
+  ))
+
 ```
 
 
-### **Distribution of Daily COVID-19 Patients For Last 30days (For June -2021)**
+### **Distribution of Daily COVID-19 Patients For Last 30days (For Aug-2021)**
 
 
 ```{r}
 
-i <- 1:length(June_Covid$District)
-June_Covid$daily <- June_Covid$Count[i+26] - June_Covid$Count[i]
-June_Covid$Date <- as.Date(June_Covid$Date)
-June_Covid <- head(June_Covid, -26)
+i <- 1:length(District_Covid$District)
+District_Covid$daily <- District_Covid$Count[i+26] - District_Covid$Count[i]
+District_Covid$Date <- as.Date(District_Covid$Date)
+District_Covid <- head(District_Covid, -26)
 
 colors <- c('black', 'darkmagenta', 'darkorange1')
 
-June_Covid_new <- June_Covid %>%
+District_Covid_new <- District_Covid %>%
   arrange(Count) %>%
   mutate(District = fct_inorder(factor(District, ordered = TRUE)))
 
-ggplotly(ggplot(June_Covid_new, aes(Date, District)) + 
+ggplotly(ggplot(District_Covid_new, aes(Date, District)) + 
            geom_tile(aes(fill = daily))+
-           scale_fill_gradientn(limits = c(0, 800), 
+           scale_fill_gradientn(limits = c(0, 2000), 
                                 colors = colors,  
-                                breaks = c(0, 200, 400, 600, 800))+ 
+                                breaks = c(0, 500, 1000, 1500, 2000))+ 
            scale_x_date(date_breaks = '1 week', date_labels = "%d-%b-%Y"))
-
 
 ```
 
@@ -514,17 +617,17 @@ ggplotly(ggplot(June_Covid_new, aes(Date, District)) +
 
 ```{r, echo=FALSE}
 
-cov_june <- as.data.frame(June_Covid)
+cov_District <- as.data.frame(District_Covid)
 
-District <- c(cov_june$District[1:26])
-data <- cov_june
+District <- c(District_Covid$District[1:26])
+data <- cov_District
 
 # Apply min-max transformation for each district separately
 covid <- function(data, District){
   results <- list(1:26)
   for(i in 1: length(District)){
     x <- filter(data, District == District[i])
-    j <- 1:30
+    j <- 1:(nrow(data)/26)
     y <- x$daily
     x$min_max <-(y[j] - min(y))/(max(y) - min(y))
     results[[i]] <- x
@@ -535,14 +638,14 @@ covid <- function(data, District){
 Data <- covid(data, District)
 District_data <- do.call(rbind, Data)
 
-June_Covid_new_1 <- District_data %>%
+District_Covid_new_1 <- District_data %>%
   arrange(Count) %>%
   mutate(District = fct_inorder(factor(District, ordered = TRUE)))
 
 # Give colors manually
 colors <- c('black', 'darkmagenta', 'darkorange1')
 
-ggplotly(ggplot(June_Covid_new_1, aes(Date, District)) + 
+ggplotly(ggplot(District_Covid_new_1, aes(Date, District)) + 
            geom_tile(aes(fill = min_max))+ 
            scale_fill_gradientn(limits = c(0, 1), colors = colors,  
                                 breaks = c(0, 0.25, 0.5, 0.75, 1))+ 
@@ -553,42 +656,69 @@ ggplotly(ggplot(June_Covid_new_1, aes(Date, District)) +
 Vaccination Details 
 ========================================================================
 
-column
+column{.tabset}
 -----------------------------------------
 
 ```{r}
 # Get total vaccine counts
-Vaccine_new_data <- tail(Vaccine_new, 6)
+Vaccine_new_data <- Vaccine_new %>%
+  filter(Date == max(Vaccine_new$Date))
 Vaccine_new_data <- Vaccine_new_data %>% group_by(Vaccine) %>%
   mutate(percentage = round(count/sum(count)*100, 2))
 
 ```
 
-### **Count of Vaccination by Vaccine Name**
+### **Total Vaccine Doses**
+
+***In Sri Lanka vaccination has been started from end of the January 2021.But, situation reports recorded Vaccine data by names of the vaccine since 28th April 2021.**
 
 ```{r}
-plot_ly(Vaccine_new_data, 
+
+Vaccinedat <- Vaccine_new %>%
+  group_by(Date, dose) %>%
+  summarise(value = sum(count)) %>%
+  ungroup()
+
+Vaccinedat$Date <- as.Date(Vaccinedat$Date) - 1
+
+plotly::plot_ly(Vaccinedat,
+       x = ~Date,
+       y = ~Vaccinedat$value,
+       type = "scatter", 
+       mode = "lines+markers",
+       color = ~dose, 
+       colors = c('First Dose Only' = dose1_clr, 'Fully Vaccinated' = dose2_clr)) %>%
+  layout(yaxis = list(title = "Cumulative Doses Administrated"), autosize = F, width = 1250, height = 500)
+
+```
+
+
+### **Total Administrated Doses by Vaccine Name**
+
+```{r}
+g10 <- plotly::plot_ly(Vaccine_new_data, 
         x = ~count, 
         y = ~reorder(Vaccine, count), 
         type = 'bar', 
         color = ~dose, 
-        colors = c('First Dose Only' = '#d01c8b', 'Fully Vaccinated' = '#4dac26')) %>% layout(title = "Vaccination Counts", yaxis = list(title  = list(text = "Vaccine Name", standoff = 10)),  barmode = "stack")
+        colors = c('First Dose Only' = dose1_clr, 'Fully Vaccinated' = dose2_clr)) %>% layout(yaxis = list(title  = list(text = "Vaccine Name", standoff = 10)),  barmode = "stack", legend = list(orientation = "h",xanchor = "center",x = 0.5 ))
 
-```
-
-
-### **Proportion of Vaccination by Vaccine Name**
-
-```{r}
-plot_ly(Vaccine_new_data, 
+g11<- plotly::plot_ly(Vaccine_new_data, 
         x = ~percentage, 
         y = ~reorder(Vaccine, count), 
         type = 'bar', 
         color = ~dose, 
-        colors = c('First Dose Only' = '#d01c8b', 'Fully Vaccinated' = '#4dac26')) %>%
-  layout(title = "Propotion of Vaccination" ,xaxis = list(title = 'Percentage(%)'),  yaxis = list(title  = list(text = "Vaccine Name", standoff = 10)), barmode = "stack") 
-```
+        colors = c('First Dose Only' = dose1_clr, 'Fully Vaccinated' = dose2_clr),
+        showlegend = FALSE) %>%
+  layout(xaxis = list(title = 'Percentage(%)'),  yaxis = list(title  = list(text = "Vaccine Name", standoff = 10)), barmode = "stack") 
 
+subplot(g10, g11, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.05) %>%
+  layout(annotations = list(
+    list(x = 0.1, y = 1.05, text = "Vaccination Counts", showarrow = F, xref = 'paper', yref = 'paper'),
+    list(x = 0.85, y = 1.05, text = "Propotion of Vaccination", showarrow = F, xref = 'paper', yref = 'paper')
+  ))
+
+```
 
 Top 10 Countries 
 =========================================================
@@ -601,13 +731,13 @@ column{.tabset}
 datacov <- read.csv("https://covid19.who.int/WHO-COVID-19-global-data.csv")
 
 new <- datacov %>%
-  filter(Country%in% c("United States of America", "India", "Brazil", "Russian Federation", 
-                       "France", "The United Kingdom", "	Turkey", "Argentina", "Colombia", "Spain", "Sri Lanka"))
-cov <- new[, c(1, 3,5, 6, 7, 8)]
+  filter(Country%in% c("United States of America", "India", "Brazil", "Russian Federation", "France", "The United Kingdom", "Turkey", "Argentina", "Colombia", "Spain", "Sri Lanka"))
+
+cov <- new[, c(1, 3, 5, 6, 7, 8)]
 
 names(cov) <- c("Date", "Country", "Daily cases", "Cumalative cases", "Daily deaths", "Cumalative deaths")
 
-cov$Country <- factor(cov$Country, levels = c("United States of America", "India", "Brazil", "Russian Federation", "France", "The United Kingdom", "	Turkey", "Argentina", "Colombia", "Spain","Iran (Islamic Republic of)" , "Sri Lanka"))
+cov$Country <- factor(cov$Country, levels = c("United States of America", "India", "Brazil", "Russian Federation", "France", "The United Kingdom", "Turkey", "Argentina", "Colombia", "Spain","Iran (Islamic Republic of)" , "Sri Lanka"))
 
 colors <- c("#543005", "#8c510a", "#bf812d", "#dfc27d", "#f6e8c3", "#762a83", "#80cdc1", "#35978f", "#01665e", "#003c30", "#ca0020")
 
@@ -617,7 +747,7 @@ colors <- c("#543005", "#8c510a", "#bf812d", "#dfc27d", "#f6e8c3", "#762a83", "#
 ### **Comparison of Cumulative Cases in Sri Lanka  with Top 10 Countries (Linear)**
 
 ```{r}
-g7 <- plot_ly(cov) %>%
+g12 <- plot_ly(cov) %>%
   add_lines(
     x = ~Date, 
     y = ~cov$`Cumalative cases`, 
@@ -630,7 +760,7 @@ g7 <- plot_ly(cov) %>%
     xaxis = list(title = "Date")
   )
 
-g8 <- plot_ly(cov) %>%
+g13 <- plot_ly(cov) %>%
   add_lines(
     x = ~Date, 
     y = ~cov$`Cumalative deaths`, 
@@ -645,7 +775,7 @@ g8 <- plot_ly(cov) %>%
   )
 
 
-subplot(g7, g8, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
+subplot(g12, g13, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
           layout(annotations = list(
             list(x = 0.09, y = 1.05, text = "Total COVID-19 Confirmed Cases", showarrow = F, xref = 'paper', yref = 'paper'),
             list(x = 0.85, y = 1.05, text = "Total COVID-19 Deaths", showarrow = F, xref = 'paper', yref = 'paper')
@@ -656,7 +786,7 @@ subplot(g7, g8, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
 ### **Comparison of Log value of Cumulative Counts in Sri Lanka with Top 10 Countries (Log)**
 
 ```{r}
-g9 <- plot_ly(cov) %>%
+g14 <- plot_ly(cov) %>%
   add_lines(
     x = ~Date, 
     y = ~cov$`Cumalative cases`, 
@@ -670,7 +800,7 @@ g9 <- plot_ly(cov) %>%
          xaxis = list(title = "Date")
   )
 
-g10 <- plot_ly(cov) %>%
+g15 <- plot_ly(cov) %>%
   add_lines(
     x = ~Date, 
     y = ~cov$`Cumalative deaths`, 
@@ -684,7 +814,7 @@ g10 <- plot_ly(cov) %>%
          xaxis = list(title = "Date")
   )
 
-subplot(g9, g10, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
+subplot(g14, g15, nrows  = 1, shareX = TRUE, titleY = TRUE, margin = 0.03) %>%
           layout(annotations = list(
             list(x = 0.09, y = 1.05, text = "Total COVID-19 Confirmed Cases", showarrow = F, xref = 'paper', yref = 'paper'),
             list(x = 0.85, y = 1.05, text = "Total COVID-19 Deaths", showarrow = F, xref = 'paper', yref = 'paper')
@@ -698,29 +828,33 @@ Global Comparison
 
 
 ```{r}
-# Refresh the coronavirus package to get new data
-covid19 <- refresh_coronavirus_jhu()
+# Get COVID-19 data from coronavirus package
+covid19 <- read.csv("https://raw.githubusercontent.com/RamiKrispin/coronavirus/master/csv/coronavirus.csv")
+covid19$date <- as.Date(covid19$date)
+cv_data <-covid19 %>%
+  dplyr::filter(cases > 0) %>%
+  dplyr::group_by(country,province,lat,long,type) %>%
+  dplyr::summarise(cases = sum(cases)) 
 
-cv_data <- covid19 %>%
-  dplyr::filter(value > 0) %>%
-  dplyr::group_by(location, lat,long, data_type) %>%
-  dplyr::summarise(cases = sum(value)) 
+
 
 global <-cv_data %>% 
-  filter(location  %in% c("US", "India", "Brazil", "Russia", "France", "United Kingdom", "Turkey", "Argentina", "Colombia", "Spain", "Sri Lanka")) %>%
-  filter(data_type %in% c("cases_new", "deaths_new"))
+  filter(country  %in% c("US", "India", "Brazil", "Russia", "France", "United Kingdom", "Turkey", "Argentina", "Colombia", "Spain", "Sri Lanka")) %>%
+  filter(type %in% c("confirmed", "death"))
+global <- global[is.na(global$province), ]
 
 Asia <- cv_data %>%
-  filter(location  %in% c("India", "Sri Lanka", "Bangladesh", "Pakistan", "Iran", "Indonesia", "Philippines", "Iraq", "Malaysia", "Japan", "Tailand")) %>%
-  filter(data_type %in% c("cases_new", "deaths_new"))
+  filter(country  %in% c("India", "Sri Lanka", "Bangladesh", "Pakistan", "Iran", "Indonesia", "Philippines", "Iraq", "Malaysia", "Japan", "Tailand")) %>%
+  filter(type %in% c("confirmed", "death"))
+Asia<- Asia[is.na(Asia$province), ]
 
-global_new <- pivot_wider(global, names_from = data_type, values_from = cases)
+global_new <- pivot_wider(global, names_from = type, values_from = cases)
 global_new <- global_new %>%
-  mutate(rate = round(deaths_new/cases_new*100, 2))
+  mutate(rate = round(death/confirmed*100, 2))
 
-Asia_new <- pivot_wider(Asia, names_from = data_type, values_from = cases)
+Asia_new <- pivot_wider(Asia, names_from = type, values_from = cases)
 Asia_new <- Asia_new %>%
-  mutate(rate = round(deaths_new/cases_new*100, 2))
+  mutate(rate = round(death/confirmed*100, 2))
 
 ```
 
@@ -732,24 +866,24 @@ column{.tabset}
 
 
 ```{r}
-g11 <- plot_ly(global, 
+g16 <- plot_ly(global, 
                x = ~cases, 
-               y = ~reorder(location, cases), 
+               y = ~reorder(country, cases), 
                type = 'bar', 
-               color = ~data_type, 
-               colors = c('cases_new' = confirmed_clr, 'deaths_new' = death_clr)) %>%
+               color = ~type, 
+               colors = c('confirmed' = confirmed_clr, 'death' = death_clr)) %>%
   layout(xaxis = list(title = 'Count'),   yaxis = list(title  = list(text = "Country", standoff = 10)), barmode = "stack", legend = list(orientation = "h",xanchor = "center",x = 0.5 ))
                                                                                                                                          
-g12 <- plot_ly(global_new, 
+g17 <- plot_ly(global_new, 
                x = ~rate, 
-               y = ~reorder(location, rate), 
+               y = ~reorder(country, rate), 
                type = 'bar', 
                marker = list(color = "brown"), 
                name = "Death Rate", 
                showlegend = FALSE) %>%
   layout(xaxis = list(title = 'Death Rate (%)'), yaxis = list(title  = list(text = "Country", standoff = 10)))
 
-subplot(g11, g12, nrows  = 1, titleX = TRUE, titleY = TRUE, margin = 0.05) %>%
+subplot(g16, g17, nrows  = 1, titleX = TRUE, titleY = TRUE, margin = 0.05) %>%
   layout(annotations = list(
     list(x = 0.09, y = 1.05, text = "Number of Cases Per Country", showarrow = F, xref = 'paper', yref = 'paper'),
     list(x = 0.85, y = 1.05, text = "Case-Fatality Ratio Per Country", showarrow = F, xref = 'paper', yref = 'paper')
@@ -760,24 +894,24 @@ subplot(g11, g12, nrows  = 1, titleX = TRUE, titleY = TRUE, margin = 0.05) %>%
 ### **Comparison of Sri Lanka with Top 10 Countries Reporting the Most COVID-19 Cases in the Asia**
 
 ```{r}
-g13 <- plot_ly(Asia, 
+g18 <- plot_ly(Asia, 
                x = ~cases, 
-               y = ~reorder(location, cases), 
+               y = ~reorder(country, cases), 
                type = 'bar', 
-               color = ~data_type, 
-               colors = c('cases_new' = confirmed_clr, 'deaths_new' = death_clr)) %>%
+               color = ~type, 
+               colors = c('confirmed' = confirmed_clr, 'death' = death_clr)) %>%
   layout(xaxis = list(title = 'Count'),   yaxis = list(title  = list(text = "Country", standoff = 10)), barmode = "stack", legend = list(orientation = "h",xanchor = "center",x = 0.5 ))
 
-g14 <- plot_ly(Asia_new, 
+g19 <- plot_ly(Asia_new, 
                x = ~rate, 
-               y = ~reorder(location, rate), 
+               y = ~reorder(country, rate), 
                type = 'bar', 
                marker = list(color = "brown"), 
                name = "Death Rate", 
                showlegend = FALSE) %>%
   layout(xaxis = list(title = 'Death Rate (%)'), yaxis = list(title  = list(text = "Country", standoff = 10)))
 
-subplot(g13, g14, nrows  = 1, titleX = TRUE, titleY = TRUE, margin = 0.05) %>%
+subplot(g18, g19, nrows  = 1, titleX = TRUE, titleY = TRUE, margin = 0.05) %>%
   layout(annotations = list(
     list(x = 0.09, y = 1.05, text = "Number of Cases Per Country", showarrow = F, xref = 'paper', yref = 'paper'),
     list(x = 0.85, y = 1.05, text = "Case-Fatality Ratio Per Country", showarrow = F, xref = 'paper', yref = 'paper')
@@ -794,16 +928,15 @@ Global Map
 
 ```{r}
 # Correction of longitude 
-
 cv_data$long[cv_data$long == 149.4068] <- -149.4068
 
 cv_data_for_plot <- cv_data %>%
   dplyr::mutate(log_cases = 2 * log(cases)) %>%
   dplyr::ungroup()
 
-cv_data_for_plot.split <- cv_data_for_plot %>% split(cv_data_for_plot$data_type)
-pal <- colorFactor(c(confirmed_clr, death_clr, recovered_clr), domain = c("cases_new", "deaths_new", "recovered_new"))
-map_object <- leaflet() %>% addProviderTiles(providers$Stamen.Toner)
+cv_data_for_plot.split <- cv_data_for_plot %>% split(cv_data_for_plot$type)
+pal <- colorFactor(c(confirmed_clr, death_clr, recovered_clr), domain = c("confirmed", "death", "recovery"))
+map_object <- leaflet() %>% addProviderTiles(providers$Stamen.Toner) 
 names(cv_data_for_plot.split) %>%
   purrr::walk(function(df) {
     map_object <<- map_object %>%
@@ -811,17 +944,17 @@ names(cv_data_for_plot.split) %>%
         data = cv_data_for_plot.split[[df]],
         lng = ~long, lat = ~lat,
         # label=~as.character(cases),
-        color = ~ pal(data_type),
+        color = ~ pal(type),
         stroke = FALSE,
         fillOpacity = 0.8,
-        radius = ~log_cases,
+        radius = ~log_cases/4,
         popup = leafpop::popupTable(cv_data_for_plot.split[[df]],
                                     feature.id = FALSE,
                                     row.numbers = FALSE,
-                                    zcol = c("data_type", "cases", "location")
+                                    zcol = c("type", "cases", "country", "province")
         ),
         group = df,
-        #                 clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F),
+        #clusterOptions = markerClusterOptions(removeOutsideVisibleBounds = F),
         labelOptions = labelOptions(
           noHide = F,
           direction = "auto"
@@ -833,6 +966,7 @@ map_object %>%
     overlayGroups = names(cv_data_for_plot.split),
     options = layersControlOptions(collapsed = FALSE)
   )
+
 
 ```
 
@@ -850,7 +984,7 @@ This dashboard provides an overview of the COVID-19 pandemic for Sri Lanka. Dash
 
 All input data (related to the local situation) for the dashboard is pulled from COVID-19 daily situation reports published by Epidemiology Unit, Ministry of Health and Indigenous Medical Services, Sri Lanka.[Here](https://www.epid.gov.lk/web/index.php?option=com_content&view=article&id=225&Itemid=518&lang=en)
 
-The global data is pulled from the John Hopkins University Center for System Science and Engineering (JHU ccsE) Coronavirus repository (through coronavirus package in R) and World Heath Organization.[Here](https://covid19.who.int/WHO-COVID-19-global-data.csv)
+The global data is pulled from the John Hopkins University Center for System Science and Engineering (JHU ccsE) Coronavirus repository (through RamiKrispins' coronavirus repository) and World Heath Organization.[Here](https://covid19.who.int/WHO-COVID-19-global-data.csv)
 
 **Remarks**
 
@@ -864,8 +998,9 @@ Countries with the highest number of confirmed cases (as 31st August 2021) were 
 
 **Update**
 
-The map data & global comparison data is as of `r format(max(covid19$date), "%A %B %d, %Y")` and the dashboard has been updated on `r format(Sys.time()-86400, "%A %B %d, %Y")`.
+The global map data & global comparison data is as of `r format(max(covid19$date), "%A %B %d, %Y")` and the dashboard has been updated on `r format(Sys.time()-86400, "%A %B %d, %Y")`.
 
-Local data is as of 01st of July 2021.  
+Local data is as of 31st of August 2021.  
 
  
+
