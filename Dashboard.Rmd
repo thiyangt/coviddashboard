@@ -14,7 +14,6 @@ output:
 
 library(covid19srilanka) # to load the COVID-19 cases
 library(flexdashboard) # to dashboard interface
-library(readr) # to read the files
 library(tidyverse) # to data manipulation
 library(plotly) # to interactive visualization
 library(ggplot2) # to visualization
@@ -597,17 +596,13 @@ District_Covid$daily <- District_Covid$Count[i+26] - District_Covid$Count[i]
 District_Covid$Date <- as.Date(District_Covid$Date)
 District_Covid <- head(District_Covid, -26)
 
-colors <- c('black', 'darkmagenta', 'darkorange1')
-
 District_Covid_new <- District_Covid %>%
   arrange(Count) %>%
   mutate(District = fct_inorder(factor(District, ordered = TRUE)))
 
 ggplotly(ggplot(District_Covid_new, aes(Date, District)) + 
            geom_tile(aes(fill = daily))+
-           scale_fill_gradientn(limits = c(0, 2000), 
-                                colors = colors,  
-                                breaks = c(0, 500, 1000, 1500, 2000))+ 
+           scale_fill_viridis(option = "magma")+ 
            scale_x_date(date_breaks = '1 week', date_labels = "%d-%b-%Y"))
 
 ```
@@ -642,13 +637,9 @@ District_Covid_new_1 <- District_data %>%
   arrange(Count) %>%
   mutate(District = fct_inorder(factor(District, ordered = TRUE)))
 
-# Give colors manually
-colors <- c('black', 'darkmagenta', 'darkorange1')
-
 ggplotly(ggplot(District_Covid_new_1, aes(Date, District)) + 
            geom_tile(aes(fill = min_max))+ 
-           scale_fill_gradientn(limits = c(0, 1), colors = colors,  
-                                breaks = c(0, 0.25, 0.5, 0.75, 1))+ 
+           scale_fill_viridis(option = "magma")+ 
            scale_x_date(date_breaks = '1 week', date_labels = "%d-%b-%Y"))
 
 ```
