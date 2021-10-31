@@ -11,7 +11,7 @@ output:
 ```{r setup, include=FALSE}
 
 ## r Packages
-
+library(devtools)
 library(covid19srilanka) # to load the COVID-19 cases
 library(flexdashboard) # to dashboard interface
 library(tidyverse) # to data manipulation
