@@ -1,0 +1,11 @@
+name: dashboard
+title:
+username:
+account: statisticsmart
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5009661
+bundleId: 5195200
+url: https://statisticsmart.shinyapps.io/dashboard/
+when: 1635670407.0551
+lastSyncTime: 1635670407.05511

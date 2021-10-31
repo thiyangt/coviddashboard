@@ -5,6 +5,7 @@ output:
     orientation: rows
     vertical_layout: fill
     runtime: shiny
+    output_dir: docs
 ---
 
 ```{r setup, include=FALSE}
