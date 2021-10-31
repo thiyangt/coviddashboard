@@ -1,5 +1,6 @@
 ---
 title: "Sri Lanka COVID-19 Dashboard"
+output_dir: docs
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
