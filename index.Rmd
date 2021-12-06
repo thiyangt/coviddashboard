@@ -971,9 +971,6 @@ map_object %>%
 About
 ===================================================
 
-
-
-
 This dashboard provides an overview of the COVID-19 pandemic for Sri Lanka. Dashboard is built with R using the R Markdown framework.
 
 
@@ -1011,9 +1008,5 @@ Countries with the highest number of confirmed cases (as 31st August 2021) were 
 The global map data & global comparison data is as of `r format(max(covid19$date), "%A %B %d, %Y")` and the dashboard has been updated on `r format(Sys.time()-86400, "%A %B %d, %Y")`.
 
 Local data is as of 31st of August 2021.  
-
-```{r, echo=FALSE, fig.width=10, fig.height=10}
-knitr::include_graphics("images/hex.png")
-```
 
 
