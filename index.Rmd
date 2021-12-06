@@ -34,9 +34,12 @@ confirmed_clr <- "#7570b3"
 recovered_clr <- "#1b9e77"
 active_clr <- "purple"
 death_clr <- "#d95f02"
-wave1_clr <- "#8c96c6"
-wave2_clr <- "#8856a7"
-wave3_clr <- "#810f7c"
+death_clr1 <- "#feb24c"
+death_clr2 <- "#fc4e2a"
+death_clr3 <- "#b10026"
+wave1_clr <- "#c7e9b4"
+wave2_clr <- "#41b6c4"
+wave3_clr <- "#0c2c84"
 dose1_clr <- "#d01c8b"
 dose2_clr <-  "#4dac26"
 ```
@@ -45,7 +48,7 @@ dose2_clr <-  "#4dac26"
 Overview  
 =====================================================
 
-#### **Last Updated at `r format(Sys.time()-86400, "%A %B %d, %Y")` (Latest local data available for: August 31, 2021)**
+#### **Last Updated at `r format(Sys.time()-86400, "%A %B %d, %Y")` (Latest local data available for: September 27, 2021)**
 
 
 
@@ -95,8 +98,10 @@ Vaccine.data <- Vaccine.data[order(as.Date(Vaccine.data$Date, format="%Y-%m-%d")
 Vaccine_new <- Vaccine.data %>%
   pivot_longer(3:4, names_to = "dose", values_to = "count")
 
+#y <- Vaccine_new %>%
+#  filter(Date == max(Covid_cases$Date))
 y <- Vaccine_new %>%
-  filter(Date == max(Covid_cases$Date))
+  filter(Date == max(Date))
 
 ```
 
@@ -441,7 +446,7 @@ y1 <- Deaths %>%
 g7 <- plot_ly(y1) %>%
   add_bars(
     x = ~Date, y = ~daily, type = "bar",
-    marker = list(color = death_clr),
+    marker = list(color = death_clr1),
     name = "First wave"
   ) %>%
   layout(
@@ -457,7 +462,7 @@ y2 <- Deaths %>%
 g8 <- plot_ly(y2) %>%
   add_bars(
     x = ~Date, y = ~daily, type = "bar",
-    marker = list(color = death_clr),
+    marker = list(color = death_clr2),
     name = "Second wave"
   ) %>%
   layout(
@@ -472,7 +477,7 @@ y3 <- Deaths %>%
 g9 <- plot_ly(y3) %>%
   add_bars(
     x = ~Date, y = ~daily, type = "bar",
-    marker = list(color = death_clr),
+    marker = list(color = death_clr3),
     name = "Third wave"
   ) %>%
   layout(
@@ -662,7 +667,7 @@ Vaccine_new_data <- Vaccine_new_data %>% group_by(Vaccine) %>%
 
 ### **Total Vaccine Doses**
 
-***In Sri Lanka vaccination has been started from end of the January 2021.But, situation reports recorded Vaccine data by names of the vaccine since 28th April 2021.**
+***In Sri Lanka vaccination has been started since the end of January 2021. However, the situation reports recorded vaccine data by names of the vaccine since 28 April 2021.**
 
 ```{r}
 
@@ -680,7 +685,7 @@ plotly::plot_ly(Vaccinedat,
        mode = "lines+markers",
        color = ~dose, 
        colors = c('First Dose Only' = dose1_clr, 'Fully Vaccinated' = dose2_clr)) %>%
-  layout(yaxis = list(title = "Cumulative Doses Administrated"), autosize = F, width = 1250, height = 500)
+  layout(yaxis = list(title = "Cumulative Doses Administrated"), autosize = F, width = 1650, height = 800)
 
 ```
 
@@ -972,7 +977,10 @@ This dashboard provides an overview of the COVID-19 pandemic for Sri Lanka. Dash
 
 **Created by**
 
-Under supervision of [Dr.Thiyanga Talagala](https://thiyanga.netlify.app/) this dashboard was created by Randi Shashikala De Alwis.
+Randi Shashikala De Alwis, Department of Statistics, University of Sri Jayewardenepura
+
+[Thiyanga S. Talagala](https://thiyanga.netlify.app/), Department of Statistics, University of Sri Jayewardenepura (Project supervisor)
+
 
 **Code**
 
@@ -980,7 +988,9 @@ The code behind the dashboard is available on [GitHub](https://github.com/thiyan
 
 **Data**
 
-All input data (related to the local situation) for the dashboard is pulled from COVID-19 daily situation reports published by Epidemiology Unit, Ministry of Health and Indigenous Medical Services, Sri Lanka through 'covid19srilanka' package in R, [Here](https://github.com/thiyangt/covid19srilanka)
+All input data (related to the local situation) for the dashboard is pulled from COVID-19 daily situation reports published by Epidemiology Unit, Ministry of Health and Indigenous Medical Services, Sri Lanka through `covid19srilanka` package in R, available here https://github.com/thiyangt/covid19srilanka
+
+Sri Lanka maps are created using the `ceylon` package in R available here https://github.com/thiyangt/ceylon
 
 The global data is pulled from the John Hopkins University Center for System Science and Engineering (JHU ccsE) Coronavirus repository (through RamiKrispins' coronavirus repository) and World Heath Organization, [Here](https://covid19.who.int/WHO-COVID-19-global-data.csv)
 
@@ -1000,5 +1010,5 @@ The global map data & global comparison data is as of `r format(max(covid19$date
 
 Local data is as of 31st of August 2021.  
 
- 
+
 
