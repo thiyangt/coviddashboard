@@ -972,6 +972,8 @@ About
 ===================================================
 
 
+
+
 This dashboard provides an overview of the COVID-19 pandemic for Sri Lanka. Dashboard is built with R using the R Markdown framework.
 
 
@@ -1010,5 +1012,8 @@ The global map data & global comparison data is as of `r format(max(covid19$date
 
 Local data is as of 31st of August 2021.  
 
+```{r, echo=FALSE, fig.width=10, fig.height=10}
+knitr::include_graphics("images/hex.png")
+```
 
 
