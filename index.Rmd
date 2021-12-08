@@ -982,7 +982,7 @@ Randi Shashikala De Alwis, Department of Statistics, University of Sri Jayewarde
 
 **Code**
 
-The code behind the dashboard is available on [GitHub](https://github.com/thiyangt/coviddashboard.git)
+The code behind the dashboard is available on [GitHub](https://github.com/thiyangt/coviddashboard.git).
 
 **Data**
 
@@ -990,7 +990,7 @@ All input data (related to the local situation) for the dashboard is pulled from
 
 Sri Lanka maps are created using the `ceylon` package in R available here https://github.com/thiyangt/ceylon
 
-The global data is pulled from the John Hopkins University Center for System Science and Engineering (JHU ccsE) Coronavirus repository (through RamiKrispins' coronavirus repository) and World Heath Organization, [Here](https://covid19.who.int/WHO-COVID-19-global-data.csv)
+The global data is taken from [coronavirus](https://github.com/RamiKrispin/coronavirus) package. The raw data in this package is being pulled from the Johns Hopkins University Center for Systems Science and Engineering (JHU CCSE) Coronavirus repository.
 
 **Remarks**
 
